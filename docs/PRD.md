@@ -36,7 +36,7 @@ It is not currently intended to be a SaaS product or commercial offering. Its im
 2. **Treat the source as authoritative.** Every translation is evaluated relative to an explicitly configured source document and synchronization baseline.
 3. **Compare source history, not different languages.** Drift is determined by changes to the source since the translation was last synchronized. PolyglotGuard does not compare English prose directly with translated prose.
 4. **Be structure-aware.** Markdown headings and section hierarchy are the primary units of change, rather than raw lines.
-5. **Remain read-only by default.** The v0.1 check command must not modify documentation, commits, branches, or pull requests.
+5. **Remain read-only.** No v0.1 command may modify documentation or create commits, branches, issues, or pull requests.
 6. **Support humans and CI.** Reports must be understandable in a terminal and expose stable exit codes for automation.
 7. **Prefer deterministic behavior.** The same repository state and configuration must produce the same result without a network service or AI model.
 
@@ -87,18 +87,24 @@ The exact file name and serialization format will be decided separately. The con
 
 The design must not assume that English is always the source language.
 
+v0.1 supports one source group per configuration: one source Markdown document mapped to one or more translations. Multiple independent source groups in one configuration are out of scope for v0.1.
+
+PolyglotGuard must not infer or guess a synchronization baseline. Maintainers must record a baseline they have verified. If no historical baseline can be established, a maintainer may record the current source revision as a new baseline. In that case, PolyglotGuard tracks later source changes but does not assess drift that occurred before the new baseline.
+
 ### 7.3 Markdown section model
 
-PolyglotGuard must parse Markdown into a hierarchical section tree.
+PolyglotGuard must parse the baseline and current versions of the source Markdown document into deterministic hierarchical section trees.
 
 At minimum:
 
 - headings define section boundaries and parent-child relationships;
 - heading-like text inside fenced code blocks is not treated as a document heading;
 - section identity is based on its normalized heading path;
-- section content includes the material beneath a heading until the next heading of the same or higher level;
+- section content boundaries are defined deterministically;
 - document content before the first heading is represented consistently;
 - repeated headings are handled deterministically.
+
+Translation paths are used only to define mappings, verify that translated files exist, and identify affected translations in reports. v0.1 does not parse translated prose or compare source and translation structure.
 
 The supported Markdown dialect and detailed identity rules will be finalized during parser design.
 
@@ -127,6 +133,8 @@ A human-readable report must include:
 - added, modified, and deleted sections grouped separately;
 - total number of sections requiring translation review.
 
+For a configured translation, `STALE` means that the source changed after the recorded synchronization baseline and that human translation review is required. It does not mean that PolyglotGuard has proven the existing translation incorrect. `UP TO DATE` means only that no reportable source change was found after the baseline; it does not validate translation completeness or quality.
+
 Illustrative output:
 
     PolyglotGuard
@@ -151,9 +159,11 @@ Illustrative output:
     Deleted
       - Legacy Setup
 
-    3 sections require translation review.
+    4 sections require translation review.
 
 Exact formatting may evolve, but the information and classifications must remain stable.
+
+Machine-readable output, including JSON, is not required for v0.1. The first release requires the human-readable terminal report and exit codes defined in this document.
 
 ### 7.6 Exit codes
 
@@ -162,6 +172,10 @@ The CLI must expose predictable exit codes:
 - **0:** all configured translations are up to date;
 - **1:** at least one translation is stale;
 - **2:** configuration, repository, parsing, or runtime error.
+
+If a run contains both stale results and an error, exit code 2 takes precedence over exit code 1.
+
+If the configured baseline cannot be resolved from local Git history—for example, because the repository is a shallow clone—the command must identify the unavailable revision, return exit code 2, and explain that the required history may be missing locally. It must not fetch history, change clone depth, or rewrite Git history automatically.
 
 ### 7.7 Safety and determinism
 
@@ -195,30 +209,31 @@ These may be reconsidered only after drift detection works reliably on real repo
 
 DeepTutor will be the first real-world fixture and dogfooding target.
 
-The fixture should represent observed multilingual documentation problems such as:
+The v0.1 fixture must provide:
 
-- section mismatches;
-- source sections added after a translation was created;
-- source content modified after the last translation sync;
-- obsolete source sections removed;
-- release-history divergence;
-- formatting and structure divergence.
+- a pinned baseline source;
+- a pinned current source;
+- one or more mapped translation files;
+- expected Added, Modified, and Deleted section paths.
 
-The fixture must be reproducible and must not require modifying the upstream DeepTutor repository.
+Translation-structure and formatting divergence may be retained as research evidence for later phases, but they are not v0.1 acceptance criteria.
+
+Any fixture derived from DeepTutor must be pinned to an upstream revision, record its provenance, comply with the upstream license and any applicable attribution requirements, and state whether it contains complete files, excerpts, or synthetic adaptations. The fixture must work offline and must not require modifying or accessing the live upstream repository. PolyglotGuard must not include DeepTutor-specific detector logic.
 
 ## 10. v0.1 Acceptance Criteria
 
 v0.1 is acceptable when:
 
-1. A repository can configure at least one source-to-translation mapping.
+1. A repository can configure one source Markdown document mapped to one or more translations.
 2. The CLI can resolve the configured synchronization baseline from local Git history.
-3. Markdown is parsed into a deterministic hierarchical section tree.
+3. The baseline and current versions of the source Markdown document are parsed into deterministic hierarchical section trees.
 4. A test fixture containing added, modified, and deleted source sections is classified correctly.
 5. The terminal report identifies the affected section paths and translation.
 6. Exit codes distinguish current, stale, and error states.
 7. The check command performs no repository writes.
 8. Automated tests cover the parser, change classification, configuration errors, and CLI exit behavior.
 9. The DeepTutor fixture demonstrates a useful drift report without DeepTutor-specific logic.
+10. The same detector passes at least one independent fixture without repository-specific paths, conventions, or classification logic.
 
 ## 11. Success Signals
 
@@ -265,5 +280,6 @@ The following decisions should be resolved through research or focused design is
 - How should maintainers record and update the last-synchronized source revision?
 - Which Markdown dialect and extensions must v0.1 support?
 - How should renamed, moved, and duplicate headings be represented?
-- Should machine-readable JSON output be included in v0.1 or deferred?
-- Should one configuration support multiple independent source documents in v0.1?
+- Does the current source mean the version at `HEAD`, or may it include uncommitted working-tree changes?
+- Must a synchronization baseline identify an immutable commit object, or may it use a movable Git reference?
+- Does a section’s content include only its direct body or its full descendant subtree, and how should child-only changes affect parent classification?
