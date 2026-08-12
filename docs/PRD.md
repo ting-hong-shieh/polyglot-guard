@@ -112,6 +112,25 @@ The supported Markdown dialect and detailed identity rules will be finalized dur
 
 For each translation, PolyglotGuard compares the source document at the configured synchronization baseline with the current source document.
 
+The diagram is explanatory; the prose in this section defines the v0.1 behavior.
+
+```mermaid
+flowchart LR
+    A["Source at synchronization baseline (A)"]
+    T["Existing translation"]
+    B["Current source (B)"]
+    D["Compare source sections: A → B"]
+    R["Added / Modified / Deleted source sections"]
+    H["Human review of mapped translation"]
+
+    A -->|"Recorded sync baseline for this translation"| T
+    A --> D
+    B --> D
+    D --> R
+    R --> H
+    T -.->|"Mapped for review; contents not analyzed in v0.1"| H
+```
+
 Changes are classified as:
 
 - **Added:** a section exists in the current source but not at the baseline;
