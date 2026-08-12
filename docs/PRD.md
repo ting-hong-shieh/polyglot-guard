@@ -1,7 +1,9 @@
 # PolyglotGuard Product Requirements Document
 
-**Status:** Draft  
-**Target release:** v0.1  
+**Status:** Implemented (pre-release)
+
+**Target release:** v0.1
+
 **Last updated:** 2026-08-12
 
 ## 1. Summary
@@ -77,13 +79,15 @@ The command runs from a local Git repository, reads the repository configuration
 
 ### 7.2 Configuration requirements
 
-The exact file name and serialization format will be decided separately. The configuration must support:
+The repository configuration is `polyglotguard.toml` at the Git worktree root. It uses a strict, versioned TOML schema and must support:
 
 - a repository-relative source Markdown path;
 - one or more repository-relative translation paths;
 - an optional locale identifier for each translation;
 - a last-synchronized source Git revision for each translation;
 - clear validation errors for missing files, invalid revisions, and malformed mappings.
+
+Every baseline is a full immutable commit object ID. It must resolve locally, be equal to or an ancestor of the current `HEAD`, and contain the configured source file. Branches, tags, revision expressions, and abbreviated object IDs are not accepted as baselines. The complete schema and validation rules are defined in [the v0.1 design](design.md#configuration).
 
 The design must not assume that English is always the source language.
 
@@ -106,11 +110,11 @@ At minimum:
 
 Translation paths are used only to define mappings, verify that translated files exist, and identify affected translations in reports. v0.1 does not parse translated prose or compare source and translation structure.
 
-The supported Markdown dialect and detailed identity rules will be finalized during parser design.
+v0.1 uses CommonMark block semantics, including ATX and Setext headings and contextual fenced-code handling. A section contains only its direct body, not descendant content. Heading labels are normalized plain inline text, and duplicate sibling headings receive deterministic occurrence numbers. The complete identity and comparison rules are defined in [the v0.1 design](design.md#markdown-section-model).
 
 ### 7.4 Change detection model
 
-For each translation, PolyglotGuard compares the source document at the configured synchronization baseline with the current source document.
+For each translation, PolyglotGuard compares the source document at the configured synchronization baseline with the source blob at a single captured `HEAD` commit. Staged, unstaged, and untracked source changes are ignored.
 
 The diagram is explanatory; the prose in this section defines the v0.1 behavior.
 
@@ -291,14 +295,17 @@ The following are possible later phases, not commitments for v0.1:
 - automatically prepared pull requests with mandatory human review;
 - support for additional document formats.
 
-## 14. Open Questions
+## 14. Resolved v0.1 Decisions
 
-The following decisions should be resolved through research or focused design issues:
+Research and focused design work resolved the initial implementation questions:
 
-- What configuration file name and format should be used?
-- How should maintainers record and update the last-synchronized source revision?
-- Which Markdown dialect and extensions must v0.1 support?
-- How should renamed, moved, and duplicate headings be represented?
-- Does the current source mean the version at `HEAD`, or may it include uncommitted working-tree changes?
-- Must a synchronization baseline identify an immutable commit object, or may it use a movable Git reference?
-- Does a section’s content include only its direct body or its full descendant subtree, and how should child-only changes affect parent classification?
+- configuration uses a root-level `polyglotguard.toml` with a strict version 1 schema;
+- maintainers record and manually advance a full immutable source commit for each translation;
+- current source content comes from one captured `HEAD` commit, not the working tree;
+- source parsing uses CommonMark ATX and Setext headings;
+- section identity is a normalized heading path with sibling occurrence numbers;
+- direct-body content excludes descendants, so a child-only change does not mark its parent modified;
+- heading renames and moves are conservatively reported as Deleted plus Added;
+- internal structured results render to a terminal report; public JSON is deferred.
+
+Normative details and edge cases are maintained in [the v0.1 design](design.md).

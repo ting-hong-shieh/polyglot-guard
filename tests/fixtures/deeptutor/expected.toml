@@ -1,0 +1,9 @@
+added = [
+  '"DeepTutor: Agent-Native Personalized Tutoring" > "🚀 Get Started" > "Option 1 — Install From PyPI"',
+]
+modified = [
+  '"DeepTutor: Agent-Native Personalized Tutoring" > "🚀 Get Started"',
+]
+deleted = [
+  '"DeepTutor: Agent-Native Personalized Tutoring" > "🚀 Get Started" > "Option 1 — Install DeepTutor"',
+]
